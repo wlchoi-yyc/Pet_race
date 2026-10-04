@@ -933,6 +933,7 @@ function resetRace() {
 
 function startGame() {
   sound.init();
+  new Image().src = `assets/win_${CHARS[selected].id}.jpg`; // 預先載入勝利圖，衝線時即時顯示
   resetRace();
   state = 'countdown';
   stateTime = 0;
@@ -1487,7 +1488,8 @@ function showResult() {
   try { best = +localStorage.getItem('petdash-best') || 0; } catch (e) { /* ignore */ }
   const isBest = finalScore > best;
   if (isBest) try { localStorage.setItem('petdash-best', String(finalScore)); } catch (e) { /* ignore */ }
-  $('resultImg').src = win ? 'assets/win.jpg' : 'assets/gameover.jpg';
+  // 勝利畫面：哪隻角色勝出，就顯示該角色拿獎杯的圖
+  $('resultImg').src = win ? `assets/win_${player.def.id}.jpg` : 'assets/gameover.jpg';
   $('resultTitle').textContent = win ? `🏆 ${player.def.name} 勝出！` : `第 ${rank} 名！${order[0].def.name} 搶先衝線`;
   $('resultStats').innerHTML = `
     <div><small>名次</small><b>${rank} / 3</b></div>
