@@ -16,6 +16,12 @@ export const SCAN_PETS = {
       'thigh_L', 'shin_L', 'ankle_L', 'thigh_R', 'shin_R', 'ankle_R',
       'shoulder_L', 'elbow_L', 'wrist_L', 'shoulder_R', 'elbow_R', 'wrist_R']),
   },
+  poodle: {
+    url: './assets/tongu.glb', scale: 2.6, wag: 9,
+    map: same(['hips', 'spine', 'chest', 'neck', 'head', 'ear_L', 'ear_R', 'tail_1', 'tail_2', 'tail_3',
+      'thigh_L', 'shin_L', 'ankle_L', 'thigh_R', 'shin_R', 'ankle_R',
+      'shoulder_L', 'elbow_L', 'wrist_L', 'shoulder_R', 'elbow_R', 'wrist_R']),
+  },
   fold: {
     url: './assets/momo.glb', scale: 3.0,
     map: {
@@ -99,11 +105,11 @@ export async function loadScanPet(url) {
     children: (json.nodes[j].children || []).map((c) => skin.joints.indexOf(c)),
     inverse: new THREE.Matrix4().fromArray(ibm, k * 16),
   }));
-  return { geo, map, normalMap, joints };
+  return { geo, map, normalMap, joints, doubleSided: !!mat.doubleSided };
 }
 
 // ---------------------------------------------------------------- 建立角色（每次呼叫都有獨立骨架，網格和貼圖共用）
-// opts: { scale, map: { 動作用名稱: 模型骨骼名稱 } }
+// opts: { scale, wag（搖尾速度）, map: { 動作用名稱: 模型骨骼名稱 } }
 export function buildScanRig(data, opts) {
   const bones = data.joints.map((j) => {
     const b = new THREE.Bone();
@@ -113,7 +119,7 @@ export function buildScanRig(data, opts) {
   });
   data.joints.forEach((j, i) => j.children.forEach((c) => bones[i].add(bones[c])));
   const skeleton = new THREE.Skeleton(bones, data.joints.map((j) => j.inverse.clone()));
-  const material = new THREE.MeshLambertMaterial({ map: data.map, normalMap: data.normalMap });
+  const material = new THREE.MeshLambertMaterial({ map: data.map, normalMap: data.normalMap, side: data.doubleSided ? THREE.DoubleSide : THREE.FrontSide });
   if (data.normalMap) material.normalScale.set(0.8, -0.8);
   const mesh = new THREE.SkinnedMesh(data.geo, material);
   mesh.add(bones[0]);
@@ -140,7 +146,7 @@ export function buildScanRig(data, opts) {
     const ax = new THREE.Vector3().crossVectors(dir, X);
     return ax.lengthSq() > 1e-6 ? ax.normalize() : new THREE.Vector3(0, 0, 1);
   });
-  return { group, B, bones, rest, tailAxes, mats: [material], body: B.hips, head: B.head, neck: B.neck };
+  return { group, B, bones, rest, tailAxes, wag: opts.wag || 5.5, mats: [material], body: B.hips, head: B.head, neck: B.neck };
 }
 
 // ---------------------------------------------------------------- 動作（輸入和 models.js 的 pose 相同）
@@ -212,12 +218,20 @@ export function scanPose(rig, o) {
     head.rotation.y += Math.cos(t * 9) * 0.3;
   }
   // 尾巴：隨步伐上下擺，同時左右搖
-  const wag = 5.5 * (o.cheer ? 2.2 : 1) * (A > 0.6 ? 1.3 : 1);
+  const wag = rig.wag * (o.cheer ? 2.2 : 1) * (A > 0.6 ? 1.3 : 1);
   ['tail_1', 'tail_2', 'tail_3', 'tail_4'].forEach((n, i) => {
     if (!B[n]) return;
     _qa.setFromAxisAngle(_X, Math.sin(p - i * 0.7) * 0.12 * A - (o.air ? 0.15 : 0));
     _qb.setFromAxisAngle(rig.tailAxes[i], Math.sin(t * wag - i * 0.65) * (0.1 + 0.06 * A + (o.cheer ? 0.15 : 0)));
     B[n].quaternion.multiplyQuaternions(_qa, _qb);
+  });
+  // 垂耳（冬菇）：跑步時上下拍動、向外甩，跳躍時揚起
+  [['ear_L', 1], ['ear_R', -1]].forEach(([n, side]) => {
+    const e = B[n];
+    if (!e) return;
+    const k = o.air ? clamp(-o.vy / 10, -1, 1) : 0;
+    e.rotation.x = Math.sin(p + 1.2) * 0.3 * A + (o.air ? 0.4 * k : 0);
+    e.rotation.z = side * (0.05 + Math.max(0, Math.sin(p * 2)) * 0.25 * A + (o.air ? 0.35 : 0) + (o.cheer ? 0.25 + Math.sin(t * 10) * 0.15 : 0));
   });
 }
 const _X = new THREE.Vector3(1, 0, 0), _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion();
