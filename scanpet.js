@@ -18,6 +18,7 @@ export const SCAN_PETS = {
   },
   poodle: {
     url: './assets/tongu.glb', scale: 2.6, wag: 9,
+    tailAim: [-0.1, 0.77, 0.64], // 尾巴原本偏向右邊：擺正到正後方、向上翹約 50 度
     map: same(['hips', 'spine', 'chest', 'neck', 'head', 'ear_L', 'ear_R', 'tail_1', 'tail_2', 'tail_3',
       'thigh_L', 'shin_L', 'ankle_L', 'thigh_R', 'shin_R', 'ankle_R',
       'shoulder_L', 'elbow_L', 'wrist_L', 'shoulder_R', 'elbow_R', 'wrist_R']),
@@ -109,7 +110,7 @@ export async function loadScanPet(url) {
 }
 
 // ---------------------------------------------------------------- 建立角色（每次呼叫都有獨立骨架，網格和貼圖共用）
-// opts: { scale, wag（搖尾速度）, map: { 動作用名稱: 模型骨骼名稱 } }
+// opts: { scale, wag（搖尾速度）, tailAim（尾巴要指向的方向，用來擺正歪尾）, map: { 動作用名稱: 模型骨骼名稱 } }
 export function buildScanRig(data, opts) {
   const bones = data.joints.map((j) => {
     const b = new THREE.Bone();
@@ -146,7 +147,15 @@ export function buildScanRig(data, opts) {
     const ax = new THREE.Vector3().crossVectors(dir, X);
     return ax.lengthSq() > 1e-6 ? ax.normalize() : new THREE.Vector3(0, 0, 1);
   });
-  return { group, B, bones, rest, tailAxes, wag: opts.wag || 5.5, mats: [material], body: B.hips, head: B.head, neck: B.neck };
+  const tailRest = new THREE.Quaternion();
+  if (opts.tailAim && B.tail_1) {
+    // 尾巴現時的方向（尾根到最後一節），轉到 tailAim
+    const last = ['tail_4', 'tail_3', 'tail_2'].map((n) => B[n]).find(Boolean);
+    const v = new THREE.Vector3();
+    for (let b = last; b && b !== B.tail_1; b = b.parent) v.add(b.position);
+    tailRest.setFromUnitVectors(v.normalize(), new THREE.Vector3(...opts.tailAim).normalize());
+  }
+  return { group, B, bones, rest, tailAxes, tailRest, wag: opts.wag || 5.5, mats: [material], body: B.hips, head: B.head, neck: B.neck };
 }
 
 // ---------------------------------------------------------------- 動作（輸入和 models.js 的 pose 相同）
@@ -154,6 +163,7 @@ export function buildScanRig(data, opts) {
 export function scanPose(rig, o) {
   const { B, bones, rest } = rig;
   bones.forEach((b, i) => { b.rotation.set(0, 0, 0); b.position.copy(rest[i]); });
+  if (B.tail_1) B.tail_1.quaternion.copy(rig.tailRest);
   if (o.frozen) return;
   const p = o.phase, A = o.amp, t = o.t;
   // 每隻腳：上節（肩／大腿）、中節（肘／小腿）、下節（腕／踝）
@@ -224,6 +234,7 @@ export function scanPose(rig, o) {
     _qa.setFromAxisAngle(_X, Math.sin(p - i * 0.7) * 0.12 * A - (o.air ? 0.15 : 0));
     _qb.setFromAxisAngle(rig.tailAxes[i], Math.sin(t * wag - i * 0.65) * (0.1 + 0.06 * A + (o.cheer ? 0.15 : 0)));
     B[n].quaternion.multiplyQuaternions(_qa, _qb);
+    if (i === 0) B[n].quaternion.premultiply(rig.tailRest);
   });
   // 垂耳（冬菇）：跑步時上下拍動、向外甩，跳躍時揚起
   [['ear_L', 1], ['ear_R', -1]].forEach(([n, side]) => {
