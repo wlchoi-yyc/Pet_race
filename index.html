@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>萌寵大賽跑 Pet Dash 3D</title>
+<meta name="description" content="冬菇、墨墨、粉粉的立體賽跑網頁遊戲：避開障礙、吃食物加速，搶先衝線！">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Noto+Sans+TC:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="speedfx"></canvas>
+<div id="flash"></div>
+
+<!-- 抬頭顯示 -->
+<div id="hud" class="hidden">
+  <div class="hud-tl">
+    <div class="chip"><span class="lbl">⏱ 時間</span><span id="time">00:00.00</span></div>
+    <div class="chip"><span class="lbl">⭐ 分數</span><span id="score">0</span></div>
+  </div>
+  <div id="progress">
+    <div class="track"><span class="flag s">起點</span><span class="flag f">🏁</span>
+      <img class="head" id="head0" alt=""><img class="head" id="head1" alt=""><img class="head" id="head2" alt="">
+    </div>
+  </div>
+  <div class="hud-tr"><div id="rank">1<small>st</small></div><div id="rankLbl">名次</div></div>
+  <div class="hud-bl">
+    <div id="speedo"><span id="speedVal">0</span><span class="unit">km/h</span></div>
+    <div class="meter"><i id="speedBar"></i></div>
+    <div class="meter boost"><i id="boostBar"></i><span>⚡ 加速</span></div>
+  </div>
+  <div id="combo"></div>
+</div>
+
+<div id="countdown"></div>
+<div id="banner"></div>
+<div id="popups"></div>
+
+<div id="touch" class="hidden">
+  <button id="tLeft" aria-label="向左">◀</button>
+  <button id="tJump" aria-label="跳躍">跳</button>
+  <button id="tRight" aria-label="向右">▶</button>
+</div>
+
+<div id="topBtns">
+  <button id="pauseBtn" class="hidden" aria-label="暫停">⏸</button>
+  <button id="muteBtn" aria-label="聲音">🔊</button>
+</div>
+
+<!-- 選角畫面 -->
+<section id="menu" class="screen">
+  <h1 class="logo"><span>萌寵大賽跑</span><small>PET DASH 3D</small></h1>
+  <p class="sub">選擇你的跑手！</p>
+  <div id="cards"></div>
+  <button id="startBtn" class="big">開始比賽 ▶</button>
+  <p class="help">
+    <b>← →</b> / <b>A D</b> 左右移動　<b>空白鍵</b> / <b>↑</b> 跳躍<br>
+    🍖🐟🍩🍓 吃食物可加速　🌈 踩彩虹加速板　⚠️ 避開或跳過障礙物（箱子和大球跳不過！）
+  </p>
+</section>
+
+<!-- 暫停 -->
+<section id="pause" class="screen hidden">
+  <h2>暫停</h2>
+  <button id="resumeBtn" class="big">繼續 ▶</button>
+  <button id="quitBtn" class="ghost">返回選角</button>
+</section>
+
+<!-- 結果 -->
+<section id="result" class="screen hidden">
+  <img id="resultImg" alt="">
+  <div class="result-panel">
+    <h2 id="resultTitle"></h2>
+    <div id="resultStats"></div>
+    <div class="row">
+      <button id="againBtn" class="big">再玩一次 ↻</button>
+      <button id="charBtn" class="ghost">換角色</button>
+    </div>
+  </div>
+</section>
+
+<div id="loading">載入中……</div>
+<script type="module" src="game.js"></script>
+</body>
+</html>
