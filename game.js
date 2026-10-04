@@ -908,7 +908,8 @@ function resetRace() {
     r.ai.targetX = r.ai.cruise = START_X[i];
     r.ai.jumpAt = null;
     r.label.material.map = labelTex(r.isPlayer ? '你 YOU' : r.def.name, r.isPlayer ? '#ffb700' : r.def.css);
-    r.label.scale.set(r.isPlayer ? 2.6 : 2.0, r.isPlayer ? 0.98 : 0.75, 1);
+    r.label.scale.set(r.isPlayer ? 2.6 : 1.6, r.isPlayer ? 0.98 : 0.6, 1);
+    r.label.material.opacity = 1;
   });
   player = racers[selected];
   const others = racers.filter((r) => !r.isPlayer);
@@ -1217,6 +1218,10 @@ function updateRacer(r, dt) {
   r.aura.material.opacity = damp(r.aura.material.opacity, r.boost > 0 ? 0.55 + Math.sin(raceTime * 20) * 0.15 : 0, 8, dt);
   r.aura.position.y = r.y + 1.1;
   r.label.position.y = r.y + 3.0 + Math.sin(raceTime * 4 + r.idx) * 0.08;
+  // 「你」標籤只在倒數時顯示，起跑後淡出，以免遮擋前方視線；對手名牌縮小半透明
+  if (r.isPlayer) r.label.material.opacity = state === 'countdown' ? 1 : damp(r.label.material.opacity, 0, 4, dt);
+  else r.label.material.opacity = 0.75;
+  r.label.visible = r.label.material.opacity > 0.02;
 
   // --- 粒子
   if (onGround && r.speed > 3) {
@@ -1308,7 +1313,7 @@ function drawSpeedLines(intensity) {
 const CHASE = new THREE.Vector3(1.4, 3.3, 0);
 function chase() {
   const portrait = camera.aspect < 1;
-  return portrait ? { x: 0.8, back: 7.2, look: -0.2, fov: 68 } : { x: 1.3, back: 5.8, look: -0.4, fov: 58 };
+  return portrait ? { x: 0.8, back: 7.2, look: -0.2, fov: 68, y: 4.1 } : { x: 1.3, back: 5.8, look: -0.4, fov: 58, y: 3.3 };
 }
 function updateCamera(dt) {
   const p = player;
@@ -1328,7 +1333,7 @@ function updateCamera(dt) {
     const a = lerp(Math.PI * 0.95, 0, e);
     const rad = lerp(9.5, chase().back, e);
     const c = chase();
-    pos.set(p.x + Math.sin(a) * rad + c.x * e, lerp(2.4, CHASE.y, e), pz + Math.cos(a) * rad);
+    pos.set(p.x + Math.sin(a) * rad + c.x * e, lerp(2.4, c.y, e), pz + Math.cos(a) * rad);
     look.set(lerp(p.x * 0.6, p.x + c.look, e), lerp(1.4, 1.3, e), pz - lerp(0, 14, e));
     fov = lerp(55, c.fov, e);
   } else if (state === 'finish') {
@@ -1344,7 +1349,7 @@ function updateCamera(dt) {
     const boosting = p.boost > 0;
     const c = chase();
     camBack = damp(camBack, c.back + (boosting ? 0.7 : 0) + sp * 0.3, boosting ? 3 : 2, dt);
-    pos.set(p.x * 0.85 + c.x, CHASE.y + p.y * 0.35 - sp * 0.2, pz + camBack);
+    pos.set(p.x * 0.85 + c.x, c.y + p.y * 0.35 - sp * 0.2, pz + camBack);
     look.set(p.x * 0.9 + c.look, 1.4 + p.y * 0.45, pz - 14);
     fov = c.fov + sp * 5 + (boosting ? 7 : 0);
   }
@@ -1553,7 +1558,7 @@ function frame(now) {
       r.shadow.scale.setScalar(1 / (1 + r.y * 0.5));
     }
   } else {
-    for (const r of racers) { r.label.visible = true; updateRacer(r, dt); }
+    for (const r of racers) updateRacer(r, dt);
     separateRacers();
     jumpQueued = false;
     updateObstacles(dt);
