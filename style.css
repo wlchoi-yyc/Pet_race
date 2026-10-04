@@ -156,11 +156,7 @@ body.touch #combo { bottom: 118px; }
 .card:hover { transform: translateY(-4px); }
 .card.sel { border-color: var(--yellow); transform: translateY(-8px) scale(1.04); box-shadow: 0 0 0 4px var(--pink), 0 14px 30px rgba(255,61,139,.45); }
 .card .pic { height: 150px; display: flex; align-items: flex-end; justify-content: center; }
-.card img { height: 150px; transform-origin: 50% 100%; animation: run .42s ease-in-out infinite alternate; filter: drop-shadow(0 6px 4px rgba(0,0,0,.25)); }
-.card:nth-child(2) img { animation-delay: -.15s; }
-.card:nth-child(3) img { animation-delay: -.3s; }
-.card.sel img { animation-duration: .26s; }
-@keyframes run { 0% { transform: translateY(0) scaleY(.94) scaleX(1.04) rotate(-3deg); } 100% { transform: translateY(-16px) scaleY(1.04) scaleX(.97) rotate(3deg); } }
+.card img { height: 150px; filter: drop-shadow(0 6px 4px rgba(0,0,0,.25)); }
 .card h3 { margin: 6px 0 2px; font-size: 24px; font-weight: 900; }
 .card .tag { font-size: 14px; color: #ff3d8b; font-weight: 700; margin-bottom: 6px; }
 .stat { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; margin: 3px 0; }
@@ -168,7 +164,7 @@ body.touch #combo { bottom: 118px; }
 .stat .dots { display: flex; gap: 3px; }
 .stat .dots i { width: 18px; height: 10px; border-radius: 4px; background: #e6def7; }
 .stat .dots i.on { background: linear-gradient(90deg, var(--purple), var(--pink)); }
-.card .you { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--yellow); color: var(--ink); font-weight: 900; font-size: 14px; padding: 2px 12px; border-radius: 99px; display: none; }
+.card .you { white-space: nowrap; z-index: 2; position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--yellow); color: var(--ink); font-weight: 900; font-size: 14px; padding: 2px 12px; border-radius: 99px; display: none; }
 .card.sel .you { display: block; }
 .help { margin: 0; font-size: 15px; color: #fff; text-shadow: 0 2px 3px rgba(0,0,0,.55); line-height: 1.7; }
 .help b { background: rgba(255,255,255,.9); color: var(--ink); padding: 0 6px; border-radius: 6px; text-shadow: none; }
@@ -196,6 +192,8 @@ body.touch #combo { bottom: 118px; }
 .standings span.me { border-color: var(--pink); }
 .standings img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; object-position: 70% 25%; background: #fde9f3; }
 
+#loading.ready { cursor: pointer; }
+#loading .tap { animation: pulse 1.2s ease-in-out infinite; padding: 18px 36px; border-radius: 99px; background: rgba(255,255,255,.2); border: 4px solid #fff; }
 #loading { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: linear-gradient(180deg, #7a4dff, #ff5fa2); color: #fff; font-size: 28px; font-weight: 900; }
 
 @media (max-width: 720px) {
@@ -203,13 +201,14 @@ body.touch #combo { bottom: 118px; }
   .card .pic, .card img { height: 90px; }
   .card h3 { font-size: 17px; }
   .card .tag { font-size: 11px; }
+  .card .you { font-size: 11px; padding: 1px 8px; top: -11px; }
   .stat { font-size: 10px; gap: 3px; }
   .stat b { width: 24px; }
   .stat .dots i { width: 9px; height: 8px; }
   .chip { min-width: 0; padding: 4px 10px; }
   #time, #score { font-size: 20px; }
   .chip .lbl { font-size: 11px; }
-  #progress { top: 92px; width: 70vw; }
+  #progress { top: 118px; width: 70vw; }
   #rank { font-size: 46px; }
   .hud-tr { right: 64px; }
   .hud-bl { width: 160px; }

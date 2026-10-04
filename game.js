@@ -17,19 +17,19 @@ const GRAVITY = 30;
 
 const CHARS = [
   {
-    id: 'poodle', name: '冬菇', tag: '紅貴賓・跳得最高！', img: 'assets/poodle.png', color: 0xffa04d, css: '#ffa04d',
+    id: 'poodle', name: '冬菇', tag: '跳得最高！', img: 'assets/poodle.png', color: 0xffa04d, css: '#ffa04d',
     maxSpeed: 34, accel: 15, steer: 12.5, jump: 10.6, boostMul: 1.5,
     stats: { 速度: 4, 加速: 4, 靈活: 4, 跳躍: 5 },
     tail: [0.12, 0.6], tailR: 0.2, leg: 0.32,
   },
   {
-    id: 'fold', name: '墨墨', tag: '英短・極速衝刺王！', img: 'assets/fold.png', color: 0x9a8cff, css: '#9a8cff',
+    id: 'fold', name: '墨墨', tag: '極速衝刺王！', img: 'assets/fold.png', color: 0x9a8cff, css: '#9a8cff',
     maxSpeed: 35.2, accel: 13, steer: 11.2, jump: 9.4, boostMul: 1.58,
     stats: { 速度: 5, 加速: 3, 靈活: 3, 跳躍: 3 },
     tail: [0.17, 0.74], tailR: 0.24, leg: 0.3,
   },
   {
-    id: 'exotic', name: '粉粉', tag: '美短・轉彎最靈活！', img: 'assets/exotic.png', color: 0xff6fae, css: '#ff6fae',
+    id: 'exotic', name: '粉粉', tag: '轉彎最靈活！', img: 'assets/exotic.png', color: 0xff6fae, css: '#ff6fae',
     maxSpeed: 33.6, accel: 18, steer: 14.5, jump: 9.8, boostMul: 1.5,
     stats: { 速度: 3, 加速: 5, 靈活: 5, 跳躍: 4 },
     tail: [0.14, 0.74], tailR: 0.22, leg: 0.3,
@@ -577,7 +577,7 @@ const SPRITE_FS = `
     vec3 col = c.rgb;
     float rim = 1.0 - smoothstep(0.5, 0.95, c.a);
     col += uGlow * uBoost * (0.25 + 0.15 * sin(uTime * 25.0));
-    col = mix(col, vec3(1.0), uFlash);
+    col = mix(col, vec3(1.0, 0.35, 0.4), uFlash);
     gl_FragColor = vec4(col, 1.0);
     #include <colorspace_fragment>
   }`;
@@ -1256,7 +1256,7 @@ function updateRacer(r, dt) {
   r.uniforms.uAmp.value = damp(r.uniforms.uAmp.value, amp, 10, dt);
   r.uniforms.uWag.value = r.boost > 0 ? 22 : 11;
   r.uniforms.uBoost.value = damp(r.uniforms.uBoost.value, r.boost > 0 ? 1 : 0, 8, dt);
-  r.uniforms.uFlash.value = r.invul > 0 ? (Math.sin(raceTime * 40) > 0 ? 0.55 : 0) : damp(r.uniforms.uFlash.value, 0, 10, dt);
+  r.uniforms.uFlash.value = r.invul > 0 ? (Math.sin(raceTime * 30) > 0 ? 0.4 : 0) : damp(r.uniforms.uFlash.value, 0, 10, dt);
   const bob = onGround ? Math.abs(Math.sin(r.phase)) * (r.speed > 0.5 ? 0.32 * Math.min(1.2, sp + 0.25) : 0.08) : 0;
   r.land = Math.max(0, r.land - dt);
   let sy = 1 + Math.sin(r.phase * 2) * 0.06 * amp;
@@ -1363,7 +1363,12 @@ function drawSpeedLines(intensity) {
   }
 }
 
-const CHASE = new THREE.Vector3(-3.2, 3.7, 0);
+// 角色圖片面向右方：鏡頭放在跑手右後方、略向左望，跑道便向畫面右上方延伸，角色看來是向前跑
+const CHASE = new THREE.Vector3(3.2, 3.7, 0);
+function chase() {
+  const portrait = camera.aspect < 1;
+  return portrait ? { x: 1.7, back: 8.6, look: -0.6, fov: 70 } : { x: 3.4, back: 7, look: -1.6, fov: 60 };
+}
 function updateCamera(dt) {
   const p = player;
   let pos = new THREE.Vector3();
@@ -1380,25 +1385,27 @@ function updateCamera(dt) {
     const k = clamp(stateTime / 3.2, 0, 1);
     const e = k * k * (3 - 2 * k);
     const a = lerp(Math.PI * 0.95, 0, e);
-    const rad = lerp(9.5, camBack, e);
-    pos.set(p.x + Math.sin(a) * rad + CHASE.x * e, lerp(2.4, CHASE.y, e), pz + Math.cos(a) * rad);
-    look.set(lerp(p.x * 0.6, p.x + 2.2, e), lerp(1.4, 1.3, e), pz - lerp(0, 14, e));
-    fov = lerp(55, 62, e);
+    const rad = lerp(9.5, chase().back, e);
+    const c = chase();
+    pos.set(p.x + Math.sin(a) * rad + c.x * e, lerp(2.4, CHASE.y, e), pz + Math.cos(a) * rad);
+    look.set(lerp(p.x * 0.6, p.x + c.look, e), lerp(1.4, 1.3, e), pz - lerp(0, 14, e));
+    fov = lerp(55, c.fov, e);
   } else if (state === 'finish') {
     const k = clamp(stateTime / 1.5, 0, 1);
     const e = k * k * (3 - 2 * k);
     const a = lerp(0, Math.PI * 0.85, e) + stateTime * 0.1;
     const rad = lerp(camBack, 7.5, e);
-    pos.set(p.x + Math.sin(a) * rad + CHASE.x * (1 - e), lerp(CHASE.y, 2.4, e), pz + Math.cos(a) * rad);
+    pos.set(p.x + Math.sin(a) * rad + chase().x * (1 - e), lerp(CHASE.y, 2.4, e), pz + Math.cos(a) * rad);
     look.set(p.x, 1.5 + p.y * 0.5, pz);
     fov = 58;
   } else {
     const sp = p.speed / p.def.maxSpeed;
     const boosting = p.boost > 0;
-    camBack = damp(camBack, 6.6 + (boosting ? 1.6 : 0) + sp * 0.4, boosting ? 3 : 2, dt);
-    pos.set(p.x * 0.75 + CHASE.x, CHASE.y + p.y * 0.35 - sp * 0.2, pz + camBack);
-    look.set(p.x * 0.8 + 1.8, 1.4 + p.y * 0.45, pz - 14);
-    fov = 60 + sp * 6 + (boosting ? 9 : 0);
+    const c = chase();
+    camBack = damp(camBack, c.back + (boosting ? 1.6 : 0) + sp * 0.4, boosting ? 3 : 2, dt);
+    pos.set(p.x * 0.85 + c.x, CHASE.y + p.y * 0.35 - sp * 0.2, pz + camBack);
+    look.set(p.x * 0.9 + c.look, 1.4 + p.y * 0.45, pz - 14);
+    fov = c.fov + sp * 6 + (boosting ? 9 : 0);
   }
   if (state === 'race' || state === 'finish' || state === 'countdown') {
     camera.position.x = damp(camera.position.x, pos.x, 6, dt);
@@ -1540,7 +1547,6 @@ function buildMenu() {
       sound.eat();
       [...wrap.children].forEach((k, j) => k.classList.toggle('sel', j === i));
       racers.forEach((r) => (r.isPlayer = r.idx === i));
-      racers[i].vy = 8;
     });
     wrap.appendChild(el);
   });
@@ -1595,22 +1601,20 @@ function frame(now) {
   if (state === 'menu' || state === 'result') {
     for (const r of racers) {
       if (r.y > 0 || r.vy > 0) { r.vy -= GRAVITY * dt; r.y = Math.max(0, r.y + r.vy * dt); if (r.y === 0) { r.vy = 0; r.land = 0.18; } }
-      r.phase += dt * (r.isPlayer ? 9 : 4);
-      r.uniforms.uPhase.value = r.phase;
-      r.uniforms.uAmp.value = r.isPlayer && state === 'menu' ? 0.5 : 0.15;
+      r.uniforms.uPhase.value = 0;
+      r.uniforms.uAmp.value = 0;
       r.uniforms.uBoost.value = 0;
       r.uniforms.uFlash.value = 0;
       r.root.position.set(r.x, 0, -r.dist);
-      r.pivot.position.y = r.y + Math.abs(Math.sin(r.phase)) * (r.isPlayer ? 0.25 : 0.06);
+      r.pivot.position.y = r.y;
       r.land = Math.max(0, r.land - dt);
       r.lean.scale.set(r.land > 0 ? 1.15 : 1, r.land > 0 ? 0.82 : 1, 1);
-      r.lean.rotation.z = Math.sin(r.phase * 0.5) * 0.04;
+      r.lean.rotation.z = 0;
       r.pivot.rotation.y = Math.atan2(camera.position.x - r.x, camera.position.z + r.dist);
       r.aura.material.opacity = 0;
-      r.label.visible = state === 'menu' && r.isPlayer;
+      r.label.visible = false;
       r.label.position.y = 3.5 + r.y;
       r.shadow.scale.setScalar(1 / (1 + r.y * 0.5));
-      if (r.isPlayer && state === 'menu' && Math.random() < dt * 4) sparkle.spawn(r.x + rand(-1, 1), rand(0.5, 2.6), rand(-0.5, 0.5), 0, 1, 0, 0.6, 0.6, 0.1, 0xffd23f, 1, 0, 0);
     }
   } else {
     for (const r of racers) { r.label.visible = true; updateRacer(r, dt); }
@@ -1645,4 +1649,15 @@ camLook.set(0, 1.4, 0);
 window.__petdash = { racers, get state() { return state; }, get time() { return raceTime; } };
 requestAnimationFrame(frame);
 Promise.all(CHARS.map((c) => new Promise((res) => { const i = new Image(); i.onload = i.onerror = res; i.src = c.img; })))
-  .then(() => $('loading').classList.add('hidden'));
+  .then(() => {
+    // 瀏覽器要求先有一次點擊才可播放聲音：點一下即開始音樂和觀眾聲
+    const ld = $('loading');
+    ld.innerHTML = '<div class="tap">👆 點一下開始</div>';
+    ld.classList.add('ready');
+    ld.addEventListener('pointerdown', () => {
+      sound.init();
+      sound.startMusic();
+      sound.setCrowd(0.15);
+      ld.classList.add('hidden');
+    }, { once: true });
+  });
