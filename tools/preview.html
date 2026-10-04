@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>角色預覽</title>
+<style>html,body{margin:0;height:100%;background:#cfe9ff}canvas{display:block}</style></head>
+<body>
+<!-- 開發用：角色模型近鏡預覽。?view=front|back|side|run|jump  &t=秒 -->
+<script type="module">
+import * as THREE from '../lib/three.module.js';
+import { createPet } from '../models.js';
+const q = new URLSearchParams(location.search);
+const view = q.get('view') || 'front';
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xd8ecff);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xd8c8ec, 1.9));
+const sun = new THREE.DirectionalLight(0xfff0dc, 1.7);
+sun.position.set(-40, 80, 30);
+scene.add(sun);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshLambertMaterial({ color: 0x9c7bf0 }));
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+const cam = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 100);
+const ids = ['exotic', 'fold', 'poodle'];
+const pets = ids.map((id, i) => { const p = createPet(id, 0xffffff); p.group.position.x = (i - 1) * 2.9; scene.add(p.group); return p; });
+const t = +(q.get('t') || 0.35);
+const dist = 11;
+if (view === 'front') { cam.position.set(0, 2.2, -dist); }
+else if (view === 'back' || view === 'run' || view === 'jump') { cam.position.set(0, 2.6, dist); }
+else { cam.position.set(dist, 2.0, 0); }
+cam.lookAt(0, 1.0, 0);
+pets.forEach((p) => p.pose(view === 'run' ? { t, phase: t * 20, amp: 1, steer: 0, stun: 0 } : view === 'jump' ? { t, phase: 0, amp: 0.3, air: true, vy: 4, steer: 0, stun: 0 } : { frozen: true }));
+renderer.render(scene, cam);
+window.__ready = true;
+</script></body></html>

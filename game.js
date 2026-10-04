@@ -46,7 +46,7 @@ scene.fog = new THREE.Fog(0xffe6f6, 160, 620);
 const camera = new THREE.PerspectiveCamera(62, 1, 0.3, 1500);
 const MAX_ANISO = renderer.capabilities.getMaxAnisotropy();
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x8fd18a, 1.9));
+scene.add(new THREE.HemisphereLight(0xffffff, 0xd8c8ec, 1.9));
 const sun = new THREE.DirectionalLight(0xfff0dc, 1.7);
 sun.position.set(-40, 80, 30);
 scene.add(sun);
