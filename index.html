@@ -52,14 +52,19 @@
 
 <!-- 選角畫面 -->
 <section id="menu" class="screen">
-  <h1 class="logo"><span>萌寵大賽跑</span><small>PET DASH 3D</small></h1>
-  <p class="sub">選擇你的跑手！</p>
+  <header class="menu-top">
+    <p class="sub">選擇你的跑手！</p>
+  </header>
+  <!-- 中間留空：看到三隻立體角色在起點準備 -->
+  <div class="menu-stage"></div>
+  <div class="menu-bottom">
   <div id="cards"></div>
   <button id="startBtn" class="big">開始比賽 ▶</button>
   <p class="help">
-    <b>← →</b> / <b>A D</b> 左右移動　<b>空白鍵</b> / <b>↑</b> 跳躍<br>
+    <span class="keys"><b>← →</b> / <b>A D</b> 左右移動　<b>空白鍵</b> / <b>↑</b> 跳躍<br></span>
     🍖🐟🍩🍓 吃食物可加速　🌈 踩彩虹加速板　⚠️ 避開或跳過障礙物（箱子和大球跳不過！）
   </p>
+  </div>
 </section>
 
 <!-- 暫停 -->
@@ -82,7 +87,12 @@
   </div>
 </section>
 
-<div id="loading">載入中……</div>
+<!-- 封面 -->
+<div id="loading">
+  <div class="cover-bg"></div>
+  <img class="cover-img" src="assets/cover.jpg" alt="萌寵大賽跑 Pet Race">
+  <button id="enterBtn" class="big" disabled>載入中……</button>
+</div>
 <script type="module" src="game.js"></script>
 </body>
 </html>
