@@ -17,7 +17,7 @@ export const SCAN_PETS = {
       'shoulder_L', 'elbow_L', 'wrist_L', 'shoulder_R', 'elbow_R', 'wrist_R']),
   },
   poodle: {
-    url: './assets/tongu.glb', scale: 2.6, wag: 9,
+    url: './assets/tongu.glb', scale: 2.6, wag: 9, wagAmp: 0.45, // 尾巴短、毛球大：搖細啲，免得似斷開
     tailAim: [-0.1, 0.77, 0.64], // 尾巴原本偏向右邊：擺正到正後方、向上翹約 50 度
     map: same(['hips', 'spine', 'chest', 'neck', 'head', 'ear_L', 'ear_R', 'tail_1', 'tail_2', 'tail_3',
       'thigh_L', 'shin_L', 'ankle_L', 'thigh_R', 'shin_R', 'ankle_R',
@@ -110,7 +110,7 @@ export async function loadScanPet(url) {
 }
 
 // ---------------------------------------------------------------- 建立角色（每次呼叫都有獨立骨架，網格和貼圖共用）
-// opts: { scale, wag（搖尾速度）, tailAim（尾巴要指向的方向，用來擺正歪尾）, map: { 動作用名稱: 模型骨骼名稱 } }
+// opts: { scale, wag（搖尾速度）, wagAmp（搖尾幅度倍數）, tailAim（尾巴要指向的方向，用來擺正歪尾）, map: { 動作用名稱: 模型骨骼名稱 } }
 export function buildScanRig(data, opts) {
   const bones = data.joints.map((j) => {
     const b = new THREE.Bone();
@@ -155,7 +155,7 @@ export function buildScanRig(data, opts) {
     for (let b = last; b && b !== B.tail_1; b = b.parent) v.add(b.position);
     tailRest.setFromUnitVectors(v.normalize(), new THREE.Vector3(...opts.tailAim).normalize());
   }
-  return { group, B, bones, rest, tailAxes, tailRest, wag: opts.wag || 5.5, mats: [material], body: B.hips, head: B.head, neck: B.neck };
+  return { group, B, bones, rest, tailAxes, tailRest, wag: opts.wag || 5.5, wagAmp: opts.wagAmp ?? 1, mats: [material], body: B.hips, head: B.head, neck: B.neck };
 }
 
 // ---------------------------------------------------------------- 動作（輸入和 models.js 的 pose 相同）
@@ -232,7 +232,7 @@ export function scanPose(rig, o) {
   ['tail_1', 'tail_2', 'tail_3', 'tail_4'].forEach((n, i) => {
     if (!B[n]) return;
     _qa.setFromAxisAngle(_X, Math.sin(p - i * 0.7) * 0.12 * A - (o.air ? 0.15 : 0));
-    _qb.setFromAxisAngle(rig.tailAxes[i], Math.sin(t * wag - i * 0.65) * (0.1 + 0.06 * A + (o.cheer ? 0.15 : 0)));
+    _qb.setFromAxisAngle(rig.tailAxes[i], Math.sin(t * wag - i * 0.65) * (0.1 + 0.06 * A + (o.cheer ? 0.15 : 0)) * rig.wagAmp);
     B[n].quaternion.multiplyQuaternions(_qa, _qb);
     if (i === 0) B[n].quaternion.premultiply(rig.tailRest);
   });
