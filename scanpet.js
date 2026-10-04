@@ -1,10 +1,33 @@
-// 粉粉（立體掃描模型版）：讀取 assets/fenfen.glb，建立蒙皮網格和骨架，由程式驅動動作
-// 只用一個網格（約一萬個三角形）、一張 1024 貼圖，比多層殼毛髮輕得多
+// 立體掃描模型角色（粉粉、墨墨）：讀取 GLB，建立蒙皮網格和骨架，由程式驅動動作
+// 每隻只用一個網格（約一萬個三角形）、一張 1024 貼圖，比多層殼毛髮輕得多
+// 不同模型的骨骼名稱不同，用 map 把「髖、脊、胸、頸、頭、尾、四肢」對應到模型裏的骨骼
 // 座標：角色面向 -Z，+Y 向上，腳底在 y = 0（與 models.js 其他角色相同）
 import * as THREE from './lib/three.module.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const SCALE = 3.0; // 模型原高約 0.8，放大到和其他角色一樣（約 2.3）
+
+
+// 骨骼對應（左右只影響步伐先後，不影響方向）
+const same = (names) => Object.fromEntries(names.map((n) => [n, n]));
+export const SCAN_PETS = {
+  exotic: {
+    url: './assets/fenfen.glb', scale: 3.0,
+    map: same(['hips', 'spine', 'chest', 'neck', 'head', 'tail_1', 'tail_2', 'tail_3', 'tail_4',
+      'thigh_L', 'shin_L', 'ankle_L', 'thigh_R', 'shin_R', 'ankle_R',
+      'shoulder_L', 'elbow_L', 'wrist_L', 'shoulder_R', 'elbow_R', 'wrist_R']),
+  },
+  fold: {
+    url: './assets/momo.glb', scale: 3.0,
+    map: {
+      hips: 'Pelvis', spine: 'UpperSpine', chest: 'Chest', neck: 'Neck', head: 'Head',
+      tail_1: 'TailBase', tail_2: 'TailLower', tail_3: 'TailMiddle', tail_4: 'TailTip',
+      thigh_L: 'HindLeftHip', shin_L: 'HindLeftKnee', ankle_L: 'HindLeftPaw',
+      thigh_R: 'HindRightHip', shin_R: 'HindRightKnee', ankle_R: 'HindRightPaw',
+      shoulder_L: 'FrontLeftShoulder', elbow_L: 'FrontLeftElbow', wrist_L: 'FrontLeftPaw',
+      shoulder_R: 'FrontRightShoulder', elbow_R: 'FrontRightElbow', wrist_R: 'FrontRightPaw',
+    },
+  },
+};
 
 // ---------------------------------------------------------------- 讀取 GLB（只支援本遊戲用的簡單格式）
 const COMP = { 5121: Uint8Array, 5123: Uint16Array, 5125: Uint32Array, 5126: Float32Array };
@@ -22,9 +45,9 @@ async function loadImage(bytes, mime) {
   }
 }
 
-export async function loadFenfen(url) {
+export async function loadScanPet(url) {
   const res = await fetch(url);
-  if (!res.ok) throw new Error('fenfen.glb ' + res.status);
+  if (!res.ok) throw new Error(url + ' ' + res.status);
   const buf = await res.arrayBuffer();
   const dv = new DataView(buf);
   if (dv.getUint32(0, true) !== 0x46546c67) throw new Error('not a GLB');
@@ -80,7 +103,8 @@ export async function loadFenfen(url) {
 }
 
 // ---------------------------------------------------------------- 建立角色（每次呼叫都有獨立骨架，網格和貼圖共用）
-export function buildFenfenRig(data) {
+// opts: { scale, map: { 動作用名稱: 模型骨骼名稱 } }
+export function buildScanRig(data, opts) {
   const bones = data.joints.map((j) => {
     const b = new THREE.Bone();
     b.name = j.name;
@@ -97,21 +121,33 @@ export function buildFenfenRig(data) {
   mesh.frustumCulled = false;
   mesh.castShadow = false;
 
-  const B = Object.fromEntries(bones.map((b) => [b.name, b]));
+  const byName = Object.fromEntries(bones.map((b) => [b.name, b]));
+  const B = {};
+  for (const [k, n] of Object.entries(opts.map)) if (byName[n]) B[k] = byName[n];
   const group = new THREE.Group();
   const model = new THREE.Group();
-  model.scale.setScalar(SCALE);
+  model.scale.setScalar(opts.scale);
   model.add(mesh);
   group.add(model);
-  const rest = Object.fromEntries(bones.map((b) => [b.name, b.position.clone()]));
-  return { group, B, rest, mats: [material], body: B.hips, head: B.head, neck: B.neck };
+  const rest = bones.map((b) => b.position.clone());
+  // 尾巴每節的「左右搖」軸：與該節方向及左右軸（X）垂直，直立的尾巴繞 Z、向後伸的尾巴繞 Y
+  const X = new THREE.Vector3(1, 0, 0);
+  const tailAxes = ['tail_1', 'tail_2', 'tail_3', 'tail_4'].map((n) => {
+    const b = B[n];
+    if (!b) return null;
+    const child = b.children.find((c) => c.isBone);
+    const dir = (child ? child.position : b.position).clone().normalize();
+    const ax = new THREE.Vector3().crossVectors(dir, X);
+    return ax.lengthSq() > 1e-6 ? ax.normalize() : new THREE.Vector3(0, 0, 1);
+  });
+  return { group, B, bones, rest, tailAxes, mats: [material], body: B.hips, head: B.head, neck: B.neck };
 }
 
 // ---------------------------------------------------------------- 動作（輸入和 models.js 的 pose 相同）
 // o: { t, phase, amp(0–1.3), air, vy, steer(-1..1), stun, cheer, frozen }
-export function fenfenPose(rig, o) {
-  const { B, rest } = rig;
-  for (const k in B) { B[k].rotation.set(0, 0, 0); B[k].position.copy(rest[k]); }
+export function scanPose(rig, o) {
+  const { B, bones, rest } = rig;
+  bones.forEach((b, i) => { b.rotation.set(0, 0, 0); b.position.copy(rest[i]); });
   if (o.frozen) return;
   const p = o.phase, A = o.amp, t = o.t;
   // 每隻腳：上節（肩／大腿）、中節（肘／小腿）、下節（腕／踝）
@@ -178,7 +214,10 @@ export function fenfenPose(rig, o) {
   // 尾巴：隨步伐上下擺，同時左右搖
   const wag = 5.5 * (o.cheer ? 2.2 : 1) * (A > 0.6 ? 1.3 : 1);
   ['tail_1', 'tail_2', 'tail_3', 'tail_4'].forEach((n, i) => {
-    B[n].rotation.x = Math.sin(p - i * 0.7) * 0.12 * A - (o.air ? 0.15 : 0);
-    B[n].rotation.z = Math.sin(t * wag - i * 0.65) * (0.1 + 0.06 * A + (o.cheer ? 0.15 : 0));
+    if (!B[n]) return;
+    _qa.setFromAxisAngle(_X, Math.sin(p - i * 0.7) * 0.12 * A - (o.air ? 0.15 : 0));
+    _qb.setFromAxisAngle(rig.tailAxes[i], Math.sin(t * wag - i * 0.65) * (0.1 + 0.06 * A + (o.cheer ? 0.15 : 0)));
+    B[n].quaternion.multiplyQuaternions(_qa, _qb);
   });
 }
+const _X = new THREE.Vector3(1, 0, 0), _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion();
