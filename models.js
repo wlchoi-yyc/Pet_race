@@ -2,6 +2,18 @@
 // 毛髮用「多層殼」技法：同一形狀沿法線向外疊多層，每層按毛髮貼圖丟棄部分像素，形成一根根的毛
 // 座標：角色面向 -Z，+Y 向上，腳底在 y = 0
 import * as THREE from './lib/three.module.js';
+import { loadFenfen, buildFenfenRig, fenfenPose } from './fenfen.js';
+
+// 粉粉改用立體模型（assets/fenfen.glb）；讀取失敗或超過 8 秒就用回下面的程式模型
+let FENFEN = null;
+try {
+  FENFEN = await Promise.race([
+    loadFenfen(new URL('./assets/fenfen.glb', import.meta.url)),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
+  ]);
+} catch (e) {
+  console.warn('粉粉模型讀取失敗，改用程式模型', e);
+}
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const COARSE = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
@@ -586,6 +598,7 @@ const BUILDERS = { fold: buildFold, exotic: buildExotic, poodle: buildPoodle };
 // ---------------------------------------------------------------- 動作
 const _flash = new THREE.Color();
 export function createPet(id, glow) {
+  if (id === 'exotic' && FENFEN) return createFenfen(glow);
   const rig = BUILDERS[id]();
   rig.group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
   const glowCol = new THREE.Color(glow);
@@ -686,5 +699,22 @@ export function createPet(id, glow) {
     rig.mats.forEach((m) => m.emissive.copy(_flash));
   };
   rig.pose({ t: 0, phase: 0, amp: 0, steer: 0, stun: 0, frozen: true });
+  return rig;
+}
+
+// 粉粉（立體模型版）：介面與其他角色相同（group、pose、tint）
+function createFenfen(glow) {
+  const rig = buildFenfenRig(FENFEN);
+  const glowCol = new THREE.Color(glow);
+  rig.pose = (o) => fenfenPose(rig, o);
+  rig.tint = (flash, boost, t) => {
+    _flash.setRGB(0.9 * flash, 0.15 * flash, 0.2 * flash);
+    const b = boost * (0.22 + 0.1 * Math.sin(t * 25));
+    _flash.r += glowCol.r * b;
+    _flash.g += glowCol.g * b;
+    _flash.b += glowCol.b * b;
+    rig.mats.forEach((m) => m.emissive.copy(_flash));
+  };
+  rig.pose({ frozen: true });
   return rig;
 }
