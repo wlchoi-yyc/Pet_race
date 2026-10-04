@@ -1,6 +1,7 @@
 // 萌寵大賽跑 Pet Dash 3D
 import * as THREE from './lib/three.module.js';
 import { Sound } from './audio.js';
+import { createPet } from './models.js';
 
 const $ = (id) => document.getElementById(id);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -20,19 +21,16 @@ const CHARS = [
     id: 'poodle', name: '冬菇', tag: '跳得最高！', img: 'assets/poodle.png', color: 0xffa04d, css: '#ffa04d',
     maxSpeed: 34, accel: 15, steer: 12.5, jump: 10.6, boostMul: 1.5,
     stats: { 速度: 4, 加速: 4, 靈活: 4, 跳躍: 5 },
-    tail: [0.12, 0.6], tailR: 0.2, leg: 0.32,
   },
   {
     id: 'fold', name: '墨墨', tag: '極速衝刺王！', img: 'assets/fold.png', color: 0x9a8cff, css: '#9a8cff',
     maxSpeed: 35.2, accel: 13, steer: 11.2, jump: 9.4, boostMul: 1.58,
     stats: { 速度: 5, 加速: 3, 靈活: 3, 跳躍: 3 },
-    tail: [0.17, 0.74], tailR: 0.24, leg: 0.3,
   },
   {
     id: 'exotic', name: '粉粉', tag: '轉彎最靈活！', img: 'assets/exotic.png', color: 0xff6fae, css: '#ff6fae',
     maxSpeed: 33.6, accel: 18, steer: 14.5, jump: 9.8, boostMul: 1.5,
     stats: { 速度: 3, 加速: 5, 靈活: 5, 跳躍: 4 },
-    tail: [0.14, 0.74], tailR: 0.22, leg: 0.3,
   },
 ];
 const START_X = [-3.2, 0, 3.2];
@@ -546,42 +544,6 @@ const sparkle = new Particles(700, starTex(), true);
 const confetti = new Particles(900, squareTex(), false);
 
 // ---------------------------------------------------------------- racers
-const loader = new THREE.TextureLoader();
-const SPRITE_VS = `
-  uniform float uTime, uPhase, uAmp, uLeg, uTailR, uWag;
-  uniform vec2 uTail;
-  varying vec2 vUv;
-  void main(){
-    vUv = uv;
-    vec3 p = position;
-    float leg = 1.0 - smoothstep(0.0, uLeg, uv.y);
-    float side = smoothstep(0.32, 0.68, uv.x);
-    float sw = mix(sin(uPhase), -sin(uPhase), side);
-    p.x += sw * leg * uAmp * 0.30;
-    p.y += max(0.0, cos(uPhase + side * 3.1416)) * leg * uAmp * 0.10;
-    float tail = 1.0 - smoothstep(0.0, uTailR, distance(uv, uTail));
-    p.x += sin(uTime * uWag) * tail * 0.16;
-    p.y += cos(uTime * uWag * 0.5) * tail * 0.08;
-    float body = (1.0 - leg) * smoothstep(0.35, 1.0, uv.y);
-    p.y += sin(uPhase * 2.0 + uv.x * 2.5) * 0.05 * uAmp * body;
-    p.x += cos(uPhase * 2.0) * 0.04 * uAmp * body;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
-  }`;
-const SPRITE_FS = `
-  uniform sampler2D uMap; uniform float uFlash, uBoost, uTime;
-  uniform vec3 uGlow;
-  varying vec2 vUv;
-  void main(){
-    vec4 c = texture2D(uMap, vUv);
-    if (c.a < 0.5) discard;
-    vec3 col = c.rgb;
-    float rim = 1.0 - smoothstep(0.5, 0.95, c.a);
-    col += uGlow * uBoost * (0.25 + 0.15 * sin(uTime * 25.0));
-    col = mix(col, vec3(1.0, 0.35, 0.4), uFlash);
-    gl_FragColor = vec4(col, 1.0);
-    #include <colorspace_fragment>
-  }`;
-
 function glowTex(color) {
   return canvasTex(128, 128, (g) => {
     const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
@@ -610,46 +572,33 @@ const shadowTex = canvasTex(64, 64, (g) => {
   g.fillStyle = r; g.fillRect(0, 0, 64, 64);
 });
 
-const SPRITE_SIZE = 2.8;
 const racers = [];
 function createRacer(def, idx) {
-  const tex = loader.load(def.img);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = MAX_ANISO;
-  const geo = new THREE.PlaneGeometry(SPRITE_SIZE, SPRITE_SIZE, 24, 24);
-  geo.translate(0, SPRITE_SIZE / 2, 0);
-  const uniforms = {
-    uMap: { value: tex }, uTime: U.time, uPhase: { value: 0 }, uAmp: { value: 0 }, uFlash: { value: 0 }, uBoost: { value: 0 },
-    uTail: { value: new THREE.Vector2(def.tail[0], def.tail[1]) }, uTailR: { value: def.tailR }, uLeg: { value: def.leg },
-    uWag: { value: 10 }, uGlow: { value: new THREE.Color(def.color) },
-  };
-  const sprite = new THREE.Mesh(geo, new THREE.ShaderMaterial({ uniforms, vertexShader: SPRITE_VS, fragmentShader: SPRITE_FS, side: THREE.DoubleSide }));
-  const lean = new THREE.Group();
-  lean.add(sprite);
+  const model = createPet(def.id, def.color);
   const pivot = new THREE.Group();
-  pivot.add(lean);
+  pivot.add(model.group);
   const root = new THREE.Group();
   root.add(pivot);
 
-  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.4), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 2.9), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = 0.1;
   root.add(shadow);
 
   const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(def.css), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
-  aura.scale.set(4.5, 4.5, 1);
-  aura.position.y = 1.4;
+  aura.scale.set(4, 4, 1);
+  aura.position.y = 1.1;
   root.add(aura);
 
   const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex(def.name, def.css), transparent: true, depthWrite: false }));
   label.scale.set(2.2, 0.83, 1);
-  label.position.y = 3.6;
+  label.position.y = 3.0;
   label.renderOrder = 10;
   root.add(label);
   scene.add(root);
 
   return {
-    def, idx, root, pivot, lean, sprite, uniforms, shadow, aura, label, isPlayer: false,
+    def, idx, root, pivot, model, shadow, aura, label, isPlayer: false, flash: 0, boostGlow: 0, amp: 0, yaw: 0,
     dist: 0, x: START_X[idx], y: 0, vy: 0, vx: 0, speed: 0, boost: 0, stun: 0, slow: 0, invul: 0,
     finished: false, finishTime: 0, phase: rand(0, 6), land: 0, stepAcc: 0, dustAcc: 0, celebrate: 0,
     score: 0, foods: 0, combo: 0, hits: 0, jumps: 0,
@@ -1118,7 +1067,7 @@ function hitObstacle(r, o) {
   r.combo = 0;
   r.hits++;
   r.vx = (r.x >= o.x ? 1 : -1) * 9;
-  r.uniforms.uFlash.value = 1;
+  r.flash = 1;
   // 障礙物被撞飛
   o.alive = false;
   o.fly = { vx: (o.x - r.x) * 3 + rand(-3, 3), vy: rand(7, 11), vz: -r.speed * 0.6 - 8, sx: rand(-6, 6), sz: rand(-6, 6), t: 0 };
@@ -1247,35 +1196,27 @@ function updateRacer(r, dt) {
     }
   }
 
-  // --- 動畫
+  // --- 動畫（骨架模型）
   const onGround = r.y <= 0.001;
   const sp = r.speed / r.def.maxSpeed;
-  r.phase += dt * (r.speed > 0.5 ? 7 + r.speed * 0.42 : 3);
-  const amp = onGround ? (r.speed > 0.5 ? clamp(0.25 + sp * 0.9, 0, 1.25) : 0.12) : 0.25;
-  r.uniforms.uPhase.value = r.phase;
-  r.uniforms.uAmp.value = damp(r.uniforms.uAmp.value, amp, 10, dt);
-  r.uniforms.uWag.value = r.boost > 0 ? 22 : 11;
-  r.uniforms.uBoost.value = damp(r.uniforms.uBoost.value, r.boost > 0 ? 1 : 0, 8, dt);
-  r.uniforms.uFlash.value = r.invul > 0 ? (Math.sin(raceTime * 30) > 0 ? 0.4 : 0) : damp(r.uniforms.uFlash.value, 0, 10, dt);
-  const bob = onGround ? Math.abs(Math.sin(r.phase)) * (r.speed > 0.5 ? 0.32 * Math.min(1.2, sp + 0.25) : 0.08) : 0;
+  r.phase += dt * (r.speed > 0.5 ? 6 + r.speed * 0.42 : 0);
+  r.amp = damp(r.amp, r.speed > 0.5 ? clamp(0.3 + sp * 0.85, 0, 1.25) : 0, 8, dt);
+  r.flash = r.invul > 0 ? (Math.sin(raceTime * 30) > 0 ? 0.6 : 0) : damp(r.flash, 0, 10, dt);
+  r.boostGlow = damp(r.boostGlow, r.boost > 0 ? 1 : 0, 8, dt);
   r.land = Math.max(0, r.land - dt);
-  let sy = 1 + Math.sin(r.phase * 2) * 0.06 * amp;
-  let sx = 1 - Math.sin(r.phase * 2) * 0.04 * amp;
-  if (!onGround) { sy = 1 + clamp(r.vy * 0.018, -0.12, 0.16); sx = 1 / sy; }
-  if (r.land > 0) { sy = 0.8; sx = 1.15; }
+  const turn = clamp(r.vx / r.def.steer, -1, 1);
+  r.yaw = damp(r.yaw, r.finished ? 0 : -turn * 0.45, 10, dt);
+  r.model.pose({ t: U.time.value + r.idx * 1.7, phase: r.phase, amp: r.amp, air: !onGround, vy: r.vy, steer: turn, stun: r.stun, cheer: r.celebrate > 0 && onGround && r.speed < 6 });
+  r.model.tint(r.flash, r.boostGlow, U.time.value);
   r.root.position.set(r.x, 0, -r.dist);
-  r.pivot.position.y = r.y + bob;
-  r.lean.scale.set(sx, sy, 1);
-  let rot = -r.vx * 0.022 + Math.sin(r.phase) * 0.05 * amp;
-  if (r.stun > 0) rot += Math.sin(raceTime * 30) * 0.25;
-  if (!onGround) rot += r.vy * 0.012;
-  r.lean.rotation.z = damp(r.lean.rotation.z, rot, 14, dt);
-  r.pivot.rotation.y = Math.atan2(camera.position.x - r.x, camera.position.z + r.dist);
+  r.root.rotation.y = r.yaw;
+  r.pivot.position.y = r.y;
+  r.pivot.scale.set(r.land > 0 ? 1.08 : 1, r.land > 0 ? 0.88 : 1, 1);
   const sh = 1 / (1 + r.y * 0.5);
   r.shadow.scale.set(sh, sh, 1);
-  r.aura.material.opacity = damp(r.aura.material.opacity, r.boost > 0 ? 0.7 + Math.sin(raceTime * 20) * 0.2 : 0, 8, dt);
-  r.aura.position.y = r.y + 1.4 + bob;
-  r.label.position.y = r.y + bob + 3.5 + Math.sin(raceTime * 4 + r.idx) * 0.1;
+  r.aura.material.opacity = damp(r.aura.material.opacity, r.boost > 0 ? 0.55 + Math.sin(raceTime * 20) * 0.15 : 0, 8, dt);
+  r.aura.position.y = r.y + 1.1;
+  r.label.position.y = r.y + 3.0 + Math.sin(raceTime * 4 + r.idx) * 0.08;
 
   // --- 粒子
   if (onGround && r.speed > 3) {
@@ -1363,11 +1304,11 @@ function drawSpeedLines(intensity) {
   }
 }
 
-// 角色圖片面向右方：鏡頭放在跑手右後方、略向左望，跑道便向畫面右上方延伸，角色看來是向前跑
-const CHASE = new THREE.Vector3(3.2, 3.7, 0);
+// 鏡頭在跑手後方略偏右
+const CHASE = new THREE.Vector3(1.4, 3.3, 0);
 function chase() {
   const portrait = camera.aspect < 1;
-  return portrait ? { x: 1.7, back: 8.6, look: -0.6, fov: 70 } : { x: 3.4, back: 7, look: -1.6, fov: 60 };
+  return portrait ? { x: 0.8, back: 7.2, look: -0.2, fov: 68 } : { x: 1.3, back: 5.8, look: -0.4, fov: 58 };
 }
 function updateCamera(dt) {
   const p = player;
@@ -1402,10 +1343,10 @@ function updateCamera(dt) {
     const sp = p.speed / p.def.maxSpeed;
     const boosting = p.boost > 0;
     const c = chase();
-    camBack = damp(camBack, c.back + (boosting ? 1.6 : 0) + sp * 0.4, boosting ? 3 : 2, dt);
+    camBack = damp(camBack, c.back + (boosting ? 0.7 : 0) + sp * 0.3, boosting ? 3 : 2, dt);
     pos.set(p.x * 0.85 + c.x, CHASE.y + p.y * 0.35 - sp * 0.2, pz + camBack);
     look.set(p.x * 0.9 + c.look, 1.4 + p.y * 0.45, pz - 14);
-    fov = c.fov + sp * 6 + (boosting ? 9 : 0);
+    fov = c.fov + sp * 5 + (boosting ? 7 : 0);
   }
   if (state === 'race' || state === 'finish' || state === 'countdown') {
     camera.position.x = damp(camera.position.x, pos.x, 6, dt);
@@ -1601,19 +1542,14 @@ function frame(now) {
   if (state === 'menu' || state === 'result') {
     for (const r of racers) {
       if (r.y > 0 || r.vy > 0) { r.vy -= GRAVITY * dt; r.y = Math.max(0, r.y + r.vy * dt); if (r.y === 0) { r.vy = 0; r.land = 0.18; } }
-      r.uniforms.uPhase.value = 0;
-      r.uniforms.uAmp.value = 0;
-      r.uniforms.uBoost.value = 0;
-      r.uniforms.uFlash.value = 0;
+      r.model.pose({ frozen: true });
+      r.model.tint(0, 0, 0);
       r.root.position.set(r.x, 0, -r.dist);
+      r.root.rotation.y = 0;
       r.pivot.position.y = r.y;
-      r.land = Math.max(0, r.land - dt);
-      r.lean.scale.set(r.land > 0 ? 1.15 : 1, r.land > 0 ? 0.82 : 1, 1);
-      r.lean.rotation.z = 0;
-      r.pivot.rotation.y = Math.atan2(camera.position.x - r.x, camera.position.z + r.dist);
+      r.pivot.scale.set(1, 1, 1);
       r.aura.material.opacity = 0;
       r.label.visible = false;
-      r.label.position.y = 3.5 + r.y;
       r.shadow.scale.setScalar(1 / (1 + r.y * 0.5));
     }
   } else {
