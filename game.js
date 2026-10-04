@@ -573,6 +573,16 @@ const shadowTex = canvasTex(64, 64, (g) => {
 });
 
 const racers = [];
+const menuStage = document.querySelector('.menu-stage');
+// 角色頭上的名牌：自己的角色顯示「你 YOU」（較大），其他顯示名字
+function setLabel(r) {
+  if (r.labelFor === r.isPlayer) return;
+  r.labelFor = r.isPlayer;
+  if (r.label.material.map) r.label.material.map.dispose();
+  r.label.material.map = labelTex(r.isPlayer ? '你 YOU' : r.def.name, r.isPlayer ? '#ffb700' : r.def.css);
+  r.label.material.needsUpdate = true;
+  r.label.scale.set(r.isPlayer ? 2.6 : 1.6, r.isPlayer ? 0.98 : 0.6, 1);
+}
 function createRacer(def, idx) {
   const model = createPet(def.id, def.color);
   const pivot = new THREE.Group();
@@ -907,8 +917,7 @@ function resetRace() {
     r.ai.think = 0;
     r.ai.targetX = r.ai.cruise = START_X[i];
     r.ai.jumpAt = null;
-    r.label.material.map = labelTex(r.isPlayer ? '你 YOU' : r.def.name, r.isPlayer ? '#ffb700' : r.def.css);
-    r.label.scale.set(r.isPlayer ? 2.6 : 1.6, r.isPlayer ? 0.98 : 0.6, 1);
+    setLabel(r);
     r.label.material.opacity = 1;
   });
   player = racers[selected];
@@ -1321,7 +1330,17 @@ function updateCamera(dt) {
   let look = new THREE.Vector3();
   let fov = 62;
   const pz = -p.dist;
-  if (state === 'menu' || state === 'result') {
+  if (state === 'menu') {
+    // 選角：鏡頭在前方，三隻角色並排站在起點，放在畫面中間（上有標題、下有角色卡）
+    const t = U.time.value * 0.25;
+    const sel = racers[selected];
+    const portrait = camera.aspect < 1;
+    // 直向：按畫面闊度把鏡頭拉遠，令三隻都在畫面內
+    const back = portrait ? clamp(9.5 / camera.aspect, 13, 24) : 12.5;
+    pos.set(Math.sin(t) * (portrait ? 0.5 : 2.0) + sel.x * 0.05, (portrait ? 3.2 : 3.6) + Math.sin(t * 0.7) * 0.25, -back);
+    look.set(sel.x * 0.05, portrait ? 0.9 : 1.2, 0);
+    fov = portrait ? 42 : 44;
+  } else if (state === 'result') {
     const t = U.time.value * 0.25;
     const sel = racers[selected];
     pos.set(Math.sin(t) * 3.5 + sel.x * 0.4, 2.6 + Math.sin(t * 0.7) * 0.5, -9.5);
@@ -1370,6 +1389,12 @@ function updateCamera(dt) {
   }
   camera.lookAt(camLook);
   if (state === 'race') camera.rotateZ(-p.vx * 0.006);
+  // 選角：把畫面中心移到標題和角色卡之間的空位，三隻角色不會被遮住
+  if (state === 'menu') {
+    const st = menuStage.getBoundingClientRect();
+    const dy = st.top + st.height * 0.6 - innerHeight / 2;
+    camera.setViewOffset(innerWidth, innerHeight, 0, -dy, innerWidth, innerHeight);
+  } else if (camera.view && camera.view.enabled) camera.clearViewOffset();
   camera.fov = damp(camera.fov, fov, 4, dt);
   camera.updateProjectionMatrix();
   sky.position.copy(camera.position);
@@ -1484,7 +1509,7 @@ function buildMenu() {
   CHARS.forEach((c, i) => {
     const el = document.createElement('div');
     el.className = 'card' + (i === selected ? ' sel' : '');
-    el.innerHTML = `<div class="you">你的跑手</div><div class="pic"><img src="${c.img}" alt="${c.name}"></div><h3>${c.name}</h3><div class="tag">${c.tag}</div>` +
+    el.innerHTML = `<div class="you">你的跑手</div><div class="head"><div class="pic"><img src="${c.img}" alt="${c.name}"></div><h3>${c.name}</h3></div><div class="tag">${c.tag}</div>` +
       Object.entries(c.stats).map(([k, v]) => `<div class="stat"><b>${k}</b><span class="dots">${[1, 2, 3, 4, 5].map((n) => `<i class="${n <= v ? 'on' : ''}"></i>`).join('')}</span></div>`).join('');
     el.addEventListener('click', () => {
       selected = i;
@@ -1492,7 +1517,8 @@ function buildMenu() {
       if (!sound.musicOn) { sound.startMusic(); sound.setCrowd(0.15); }
       sound.eat();
       [...wrap.children].forEach((k, j) => k.classList.toggle('sel', j === i));
-      racers.forEach((r) => (r.isPlayer = r.idx === i));
+      racers.forEach((r) => { r.isPlayer = r.idx === i; setLabel(r); });
+      if (racers[i].y === 0) racers[i].vy = 6; // 選中的立體角色跳一下
     });
     wrap.appendChild(el);
   });
@@ -1549,12 +1575,16 @@ function frame(now) {
       if (r.y > 0 || r.vy > 0) { r.vy -= GRAVITY * dt; r.y = Math.max(0, r.y + r.vy * dt); if (r.y === 0) { r.vy = 0; r.land = 0.18; } }
       r.model.pose({ frozen: true });
       r.model.tint(0, 0, 0);
-      r.root.position.set(r.x, 0, -r.dist);
+      // 手機直向畫面較窄：選角時三隻站近一點，全部都看得到
+      r.root.position.set(state === 'menu' && camera.aspect < 1 ? r.x * 0.62 : r.x, 0, -r.dist);
       r.root.rotation.y = 0;
       r.pivot.position.y = r.y;
       r.pivot.scale.set(1, 1, 1);
       r.aura.material.opacity = 0;
-      r.label.visible = false;
+      // 選角時三隻角色頭上都有名牌，與下面的角色卡對應
+      r.label.visible = state === 'menu';
+      r.label.material.opacity = r.isPlayer ? 1 : 0.85;
+      r.label.position.y = r.y + 2.75 + Math.sin(U.time.value * 3 + r.idx) * 0.08;
       r.shadow.scale.setScalar(1 / (1 + r.y * 0.5));
     }
   } else {
@@ -1592,10 +1622,12 @@ requestAnimationFrame(frame);
 Promise.all(CHARS.map((c) => new Promise((res) => { const i = new Image(); i.onload = i.onerror = res; i.src = c.img; })))
   .then(() => {
     // 瀏覽器要求先有一次點擊才可播放聲音：點一下即開始音樂和觀眾聲
+    // 封面：載入完成後「進入」按鈕才可按（瀏覽器要求先有一次點擊才可播放聲音）
     const ld = $('loading');
-    ld.innerHTML = '<div class="tap">👆 點一下開始</div>';
-    ld.classList.add('ready');
-    ld.addEventListener('pointerdown', () => {
+    const btn = $('enterBtn');
+    btn.textContent = '進入 ▶';
+    btn.disabled = false;
+    btn.addEventListener('click', () => {
       sound.init();
       sound.startMusic();
       sound.setCrowd(0.15);
