@@ -860,6 +860,7 @@ const keys = {};
 const touchState = { left: false, right: false };
 let jumpQueued = false;
 addEventListener('keydown', (e) => {
+  if (!window.__petRaceAuthorized) return;
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) e.preventDefault();
   keys[e.key.toLowerCase()] = true;
   if ((e.key === ' ' || e.key === 'ArrowUp' || e.key.toLowerCase() === 'w') && !e.repeat) jumpQueued = true;
@@ -902,6 +903,11 @@ let camBack = 7;
 let finishOrder = [];
 let lastRank = 1;
 let paused = false;
+addEventListener('pet-auth-lock', () => {
+  for (const k in keys) keys[k] = false;
+  jumpQueued = false;
+  sound.pause(true);
+});
 const camLook = new THREE.Vector3();
 
 function resetRace() {
@@ -932,6 +938,7 @@ function resetRace() {
 }
 
 function startGame() {
+  if (!window.__petRaceAuthorized) return;
   sound.init();
   new Image().src = `assets/win_${CHARS[selected].id}.jpg`; // 預先載入勝利圖，衝線時即時顯示
   resetRace();
@@ -961,6 +968,7 @@ function toMenu() {
   if (sound.ctx) sound.startMusic();
 }
 function togglePause(force) {
+  if (!window.__petRaceAuthorized) return;
   if (state !== 'race' && state !== 'countdown') return;
   paused = force === true ? true : !paused;
   $('pause').classList.toggle('hidden', !paused);
@@ -1558,6 +1566,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(0.05, (now - last) / 1000) * TIME_SCALE;
   last = now;
+  if (!window.__petRaceAuthorized) return;
   if (paused) { renderer.render(scene, camera); return; }
   U.time.value += dt;
   stateTime += dt;
@@ -1636,3 +1645,4 @@ Promise.all(CHARS.map((c) => new Promise((res) => { const i = new Image(); i.onl
       ld.classList.add('hidden');
     }, { once: true });
   });
+

@@ -1,0 +1,12 @@
+#experience[hidden], #authGate[hidden], #switchAccount[hidden] { display: none !important; }
+#authGate { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 24px; overflow: auto; background: linear-gradient(145deg, #e5f6ff, #ffe5f1 55%, #fff5d7); color: #493363; text-align: center; font-family: 'Noto Sans TC', system-ui, sans-serif; }
+.auth-card { width: min(100%, 460px); padding: 32px 24px; border-radius: 28px; background: #ffffffed; box-shadow: 0 14px 50px #66478625; }
+.auth-pets { font-size: 42px; letter-spacing: 10px; }
+#authGate h1 { font-size: clamp(26px, 5vw, 36px); margin: 12px 0 4px; }
+.auth-subtitle { font-family: Fredoka, sans-serif; letter-spacing: 5px; color: #8a62ad; margin: 0 0 24px; }
+#authMessage { min-height: 3em; line-height: 1.7; font-size: 16px; }
+#googleLoginButton, #switchAccount { display: block; width: 100%; min-height: 48px; border-radius: 14px; border: 0; margin-top: 12px; padding: 12px 16px; font: inherit; cursor: pointer; }
+#googleLoginButton { background: #7655d5; color: white; }
+#googleLoginButton:disabled { opacity: .5; cursor: wait; }
+#switchAccount { background: #f0eaf8; color: #493363; }
+#authLogout { position: fixed; right: 12px; bottom: 12px; z-index: 110; padding: 8px 14px; border: 1px solid #ffffffaa; border-radius: 12px; background: #fff; color: #493363; font: 700 14px system-ui; cursor: pointer; }

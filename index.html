@@ -9,8 +9,20 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Noto+Sans+TC:wght@700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="auth.css">
 </head>
 <body>
+<section id="authGate" role="region" aria-label="登入">
+  <div class="auth-card">
+    <div class="auth-pets" aria-hidden="true">🐈 🐩 🐈</div>
+    <h1>萌寵大賽跑</h1><p class="auth-subtitle">PET RACE</p>
+    <p id="authMessage" role="status" aria-live="polite">正在載入登入服務……</p>
+    <button id="googleLoginButton" disabled>使用 Google 帳號登入</button>
+    <button id="switchAccount" hidden>登出／更換帳號</button>
+  </div>
+</section>
+<div id="experience" hidden>
+<button id="authLogout">登出</button>
 <canvas id="gl"></canvas>
 <canvas id="speedfx"></canvas>
 <div id="flash"></div>
@@ -94,6 +106,11 @@
   <img class="cover-img" src="assets/cover.jpg" alt="萌寵大賽跑 Pet Race">
   <button id="enterBtn" class="big" disabled>載入中……</button>
 </div>
-<script type="module" src="game.js"></script>
+</div>
+<script src="/__/firebase/8.10.1/firebase-app.js"></script>
+<script src="/__/firebase/8.10.1/firebase-auth.js"></script>
+<script src="/__/firebase/8.10.1/firebase-firestore.js"></script>
+<script type="module" src="auth.js"></script>
 </body>
 </html>
+
