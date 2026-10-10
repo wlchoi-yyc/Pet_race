@@ -4,6 +4,7 @@ const experience = document.getElementById('experience');
 const message = document.getElementById('authMessage');
 const login = document.getElementById('googleLoginButton');
 const logout = document.getElementById('authLogout');
+const menuLogout = document.getElementById('menuLogout');
 const switchAccount = document.getElementById('switchAccount');
 let version = 0, unsubscribe = null, loaded = false;
 window.__petRaceAuthorized = false;
@@ -55,7 +56,11 @@ async function boot() {
     try { await auth.signOut(); }
     catch { lock('登出未完成，請再試一次。'); }
   }
-  logout.addEventListener('click', signOut);
+  const confirmSignOut = () => {
+    if (window.confirm('確定要登出《萌寵大賽跑》嗎？')) signOut();
+  };
+  logout.addEventListener('click', confirmSignOut);
+  menuLogout.addEventListener('click', confirmSignOut);
   switchAccount.addEventListener('click', signOut);
 
   auth.onAuthStateChanged(async user => {
