@@ -9,4 +9,3 @@
 #googleLoginButton { background: #7655d5; color: white; }
 #googleLoginButton:disabled { opacity: .5; cursor: wait; }
 #switchAccount { background: #f0eaf8; color: #493363; }
-#authLogout { position: fixed; right: 12px; bottom: 12px; z-index: 110; padding: 8px 14px; border: 1px solid #ffffffaa; border-radius: 12px; background: #fff; color: #493363; font: 700 14px system-ui; cursor: pointer; }
