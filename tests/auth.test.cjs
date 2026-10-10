@@ -6,11 +6,11 @@ const code = fs.readFileSync('auth.js','utf8').replace("import('./game.js')",'lo
 const flush = () => new Promise(resolve => setImmediate(resolve));
 async function setup({exists=true, fail=false, host='pet-race-wlchoi.web.app', deferred}={}) {
   const nodes={};
-  for(const id of ['authGate','experience','authMessage','googleLoginButton','authLogout','switchAccount']) nodes[id]={hidden:false,disabled:true,addEventListener(type,fn){this[type]=fn;}};
+  for(const id of ['authGate','experience','authMessage','googleLoginButton','authLogout','menuLogout','switchAccount']) nodes[id]={hidden:false,disabled:true,addEventListener(type,fn){this[type]=fn;}};
   nodes.experience.hidden=true;
   const auth={currentUser:null,useDeviceLanguage(){},onAuthStateChanged(fn){this.changed=fn;},async signOut(){this.currentUser=null;await this.changed(null);},async signInWithPopup(){}};
   const ref={async get(opts){assert.equal(opts.source,'server'); if(deferred) return deferred; if(fail) throw Error('offline');return {exists};},onSnapshot(opts,fn,error){this.snapshot=fn;this.error=error;return ()=>{};}};
-  const ctx={document:{getElementById:id=>nodes[id]},window:{dispatchEvent(){}},location:{hostname:host,replace(url){this.redirect=url;},reload(){this.reloaded=true;}},Event:class{},fetch:async()=>({ok:true,json:async()=>({projectId:'mulan-journey'})}),firebase:{initializeApp(){},auth:()=>auth,firestore:()=>({collection(name){assert.equal(name,'authorizedUsers');return {doc(email){assert.equal(email,'teacher@example.com');return ref;}};}})},loads:0,async loadGame(){ctx.loads++;}};
+  const ctx={document:{getElementById:id=>nodes[id]},window:{dispatchEvent(){},confirm(){return true;}},location:{hostname:host,replace(url){this.redirect=url;},reload(){this.reloaded=true;}},Event:class{},fetch:async()=>({ok:true,json:async()=>({projectId:'mulan-journey'})}),firebase:{initializeApp(){},auth:()=>auth,firestore:()=>({collection(name){assert.equal(name,'authorizedUsers');return {doc(email){assert.equal(email,'teacher@example.com');return ref;}};}})},loads:0,async loadGame(){ctx.loads++;}};
   ctx.window.firebase=ctx.firebase;
   ctx.firebase.auth.GoogleAuthProvider=class{setCustomParameters(){}};
   vm.runInNewContext(code,ctx);await flush();
@@ -25,3 +25,7 @@ test('revoked authorization locks loaded game',async()=>{const h=await setup();a
 test('unverified account fails closed',async()=>{const h=await setup();await h.login({uid:'teacher',email:'teacher@example.com',emailVerified:false});assert.equal(h.ctx.loads,0);});
 test('logout while server check pending cannot unlock game',async()=>{let resolve;const deferred=new Promise(r=>resolve=r);const h=await setup({deferred});const pending=h.login();await h.login(null);resolve({exists:true});await pending;assert.equal(h.ctx.loads,0);assert.equal(h.nodes.experience.hidden,true);});
 test('old GitHub Pages entry redirects before starting auth or game',async()=>{const h=await setup({host:'wlchoi-yyc.github.io'});assert.equal(h.ctx.location.redirect,'https://pet-race-wlchoi.web.app/');assert.equal(h.ctx.loads,0);});
+
+test('cancel logout preserves authorized session',async()=>{const h=await setup();await h.login();h.ctx.window.confirm=()=>false;h.nodes.authLogout.click();await flush();assert.equal(h.ctx.window.__petRaceAuthorized,true);assert.equal(h.nodes.experience.hidden,false);});
+test('confirmed pause-menu logout locks game',async()=>{const h=await setup();await h.login();h.nodes.authLogout.click();await flush();assert.equal(h.auth.currentUser,null);assert.equal(h.nodes.experience.hidden,true);});
+test('confirmed selection-menu logout locks game',async()=>{const h=await setup();await h.login();h.nodes.menuLogout.click();await flush();assert.equal(h.auth.currentUser,null);assert.equal(h.nodes.experience.hidden,true);});
